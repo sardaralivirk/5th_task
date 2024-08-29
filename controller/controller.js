@@ -199,10 +199,71 @@ const alluser = async (req, res) => {
 //feature
 
 };
+const aggregation_findpost = async (req, res) => {
+    try {
+        const findPost = await user.aggregate([
+            // Lookup posts for each user
+            {
+                $lookup: {
+                    from: 'posts',         // The collection to join with
+                    localField: '_id',     // Field in the users collection (ObjectId)
+                    foreignField: 'user_id', // Field in the posts collection (ObjectId)
+                    as: 'posts'            // Name of the array field to add in the user document
+                }
+            },
+          
+            // Unwind the posts array to create a separate document for each post
+            {  
+                $unwind: {
+                    path: '$posts',               // Field to unwind
+                    preserveNullAndEmptyArrays: true // Keep users without posts
+                }
+            },
+           
+            //Lookup users whose _id is in the likes field of posts
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'posts.likes', // Field from the posts collection
+                    foreignField: '_id',       // Field from the users collection
+                    as: 'likedUsers'
+                }
+            },
+           
+            // Unwind the likedUsers array to create a separate document for each liked user
+            {
+                $unwind: {
+                    path: '$likedUsers',        // Field to unwind
+                    preserveNullAndEmptyArrays: true // Keep posts without liked users
+                }
+            },
+           
+            // Project the specific fields you need
+            {
+                $project: {
+                    _id: 0,               // Exclude _id from the results
+                    name: 1,             // Include user name
+                    'posts.name': 1, 
+                    'posts.comment':1,    // Include post name
+                    //'posts.likes': 1,    // Include post likes
+                    'likedUsers.name': 1 // Include the name of users who liked the post
+                }
+            }
+        ]);
+        
+        // Send the results as a JSON response
+        res.status(200).json(findPost);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send({ error: 'An error occurred' });
+    }
+};
 
-    
 
 
 
 
-module.exports={createuser,login,postcreate,like,allpost,deletepost,comment,comment_record,findLikes,userLikePost,alluser}
+
+
+
+module.exports={createuser,login,postcreate,like,allpost,deletepost,comment,comment_record,findLikes,userLikePost,alluser,aggregation_findpost}
